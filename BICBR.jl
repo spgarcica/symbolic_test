@@ -100,17 +100,21 @@ function get_bic(
     tree
     , dataset::Dataset{T,L}
     , options::SymbolicRegression.Options
-    , k::Int
+    , k::UInt
 )::L where {T,L}
     prediction, flag = eval_tree_array(tree, dataset.X, options)
     if !flag
         return L(Inf)
+        println("potato")
     end
     sse = sum((prediction .- dataset.y) .^ 2)
+    if sse <= 100.
+        println(tree)
+    end
     return ((k+1) * log(dataset.n) 
         + (dataset.n * 
             (log(2.0 * pi) 
-            + (log(sse) / dataset.n)
+            + (log(sse / dataset.n))
             + 1.0)))
 end
 
@@ -137,14 +141,13 @@ function get_ener(
     , prior::Prior
 )::L where {T,L}
     ops = get_ops(tree)
-    println(ops)
-    return (
-        get_bic(tree, dataset, options, ops.cons) / 2.0
-        + get_ener_prior(options, prior, ops))
+    bic = get_bic(tree, dataset, options, ops.cons)
+    bp = get_ener_prior(options, prior, ops)
+    return (bic / 2.0) + bp
 end
 
 function ener_loss(prior::Prior)
-    return (t, d, p) -> get_ener(t, d, p, prior)
+    return (t, d, p) -> exp(get_ener(t, d, p, prior))
 end
 
 function load_ds(fn::AbstractString)
