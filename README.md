@@ -5,7 +5,7 @@ The Matter Lab, University of Toronto
 
 ## Poster
 
-Poster
+![Poster](./poster/poster.png)
 
 ## Video Presentation
 
