@@ -21,6 +21,7 @@ struct Anl
 end
 
 function parse_op(op::AbstractString, val::AbstractString)
+    # Parse the priors from the Bayesian Machine Scientist
     d::String, l::String = split(op, "_")
     deg::UInt8 = 0
     if d == "Nopi" deg = 1
@@ -30,10 +31,13 @@ function parse_op(op::AbstractString, val::AbstractString)
     return (l, Op(deg, parse(Float64, val)))
 end
 
-function pow2(x) return x^3 end
+# Custom functions to match the priors at the Bayesian Machine Scientist prior
+function pow2(x) return x^2 end
 function pow3(x) return x^3 end
 
 function get_op_str(op)
+    # Function to convert the most common function operators into strings. It
+    # is later used to match against the parser prior.
     hs = hash(op)
     if hs == hash(+) return "+"
     elseif hs == hash(-) return "-"
@@ -57,6 +61,9 @@ function get_op_str(op)
 end
 
 function get_prior(fn::String)
+    # Parse prior values from the prior file.
+    # You can find the priors here:
+    # https://bitbucket.org/rguimera/machine-scientist/src/no_degeneracy/Prior/
     lines::Vector{String} = readlines(fn)
 
     ops::Vector{SubString{String}}= split(lines[1])
@@ -70,6 +77,8 @@ function get_prior(fn::String)
 end
     
 function get_ops(n::Node)
+    # From a tree, get the count of the unary and binary operations as well as
+    # the constant count.
     unaops::Dict{UInt8,UInt64} = Dict{UInt8, UInt64}()
     binops::Dict{UInt8,UInt64} = Dict{UInt8, UInt64}()
     cons::Vector{UInt16} = Vector{UInt16}()
@@ -102,6 +111,8 @@ function get_bic(
     , options::SymbolicRegression.Options
     , k::UInt
 )::L where {T,L}
+    # BIC computation from the 10.1126/sciadv.aav6971.
+    # Details in the Supplementary Text S1
     prediction, flag = eval_tree_array(tree, dataset.X, options)
     if !flag
         return L(Inf)
@@ -119,6 +130,7 @@ function get_bic(
 end
 
 function get_ener_prior(
+    # Get the energy associated with the prior.
     options::SymbolicRegression.Options
     , prior::Prior
     , ops::Anl)
@@ -140,6 +152,8 @@ function get_ener(
     , options::SymbolicRegression.Options
     , prior::Prior
 )::L where {T,L}
+    # Compute the transformation energy from the BIC and the prior, as
+    # presented in 10.1126/sciadv.aav6971.
     ops = get_ops(tree)
     bic = get_bic(tree, dataset, options, ops.cons)
     bp = get_ener_prior(options, prior, ops)
@@ -151,6 +165,8 @@ function ener_loss(prior::Prior)
 end
 
 function load_ds(fn::AbstractString)
+    # Load squared dataset, where the first columns until the last represent
+    # the variables and the last column represents the ground true output value.
     dat = mapreduce(permutedims, vcat
         , map(
             x->map(
@@ -162,12 +178,18 @@ function load_ds(fn::AbstractString)
 end
 
 
+# Test function 
 X = randn(Float32, 5, 100)
 y = 2 * cos.(X[4, :]) + X[1, :] .^ 2 .- 2
 
-prior = get_prior("./prior.dat")
+# Or load dataset
 # X, y = load_ds("train.txt")
 
+# Get prior
+prior = get_prior("./prior.dat")
+
+
+# Set the options
 options = SymbolicRegression.Options(;
     binary_operators=[+, *, /, -]
     , unary_operators=[sin, cos], populations=20
@@ -177,20 +199,3 @@ options = SymbolicRegression.Options(;
 hall_of_fame = equation_search(
     X, y; niterations=40, options=options, parallelism=:multithreading
 )
-
-# dominating = calculate_pareto_frontier(hall_of_fame)
-
-# trees = [member.tree for member in dominating]
-
-# tree = trees[end]
-# output, did_succeed = eval_tree_array(tree, X, options)
-
-# println("Complexity\tMSE\tEquation")
-
-# for member in dominating
-#     complexity = compute_complexity(member, options)
-#     loss = member.loss
-#     string = string_tree(member.tree, options)
-
-#     println("$(complexity)\t$(loss)\t$(string)")
-# end
