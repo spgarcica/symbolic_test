@@ -45,9 +45,10 @@ class OptunaBase:
 
 
 
-def objective(trial, X, y, X_val, y_val):
+def objective(trial, X, y, X_val, y_val, use_weights=False):
     # weights = [ trial.suggest_categorical(f"w_{i}", [1.0, 10.0]) for i in range(len(y)) ]
-    weights = [ trial.suggest_float(f"w_{i}", 0.1, 2.0, step=0.1) for i in range(len(y)) ]
+    if use_weights:
+        weights = [ trial.suggest_float(f"w_{i}", 0.1, 3.0, step=0.1) for i in range(len(y)) ]
 
     model = PySRRegressor(
         niterations=100,  # < Increase me for better results
@@ -73,8 +74,10 @@ def objective(trial, X, y, X_val, y_val):
         verbosity=0,
     )
 
-    model.fit(X, y, np.array([weights]))
-    # model.fit(X, y)
+    if use_weights:
+        model.fit(X, y, np.array([weights]))
+    else:
+        model.fit(X, y)
 
     # get mse from predicting on validation set
     return ((model.predict(X_val) - y_val)**2).sum()
@@ -85,11 +88,15 @@ if __name__ == "__main__":
     import os, argparse
     from functools import partial
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", type=str, default="test")
+    parser.add_argument("--use_weights", action="store_true")
     parser.add_argument("--data_path", type=str, default="test")
     parser.add_argument("--num_trials", type=int, default=100)
     args = parser.parse_args()
-    args.name = args.name[:-4] # to get rid of the .txt extension
+    if args.use_weights:
+        # [:-4] to get rid of the .txt extension
+        args.name = args.data_path[:-4] + '_weights' 
+    else:
+        args.name = args.data_path[:-4] + 'no_weights'
     
     def get_data(data_path):
         with open(data_path, 'r') as f:
@@ -116,7 +123,8 @@ if __name__ == "__main__":
         X=X_train,
         y=y_train,
         X_val=X_val,
-        y_val=y_val
+        y_val=y_val,
+        use_weights=args.use_weights
     ))
     print("Optuna run complete!")
     
